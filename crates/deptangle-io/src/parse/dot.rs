@@ -1,16 +1,18 @@
 use deptangle_graph::{DepGraph, Edge, NodeInfo};
-use dot_parser::ast;
-use either::Either;
+use graphviz_rust::dot_structures::{
+    Attribute, EdgeTy, Graph, GraphAttributes, Id, Node as AstNode, NodeId, Stmt,
+    Subgraph as AstSubgraph, Vertex,
+};
 
-/// Decode a string value from the `dot-parser` crate.
+/// Decode a string value from the `graphviz-rust` AST.
 ///
-/// The dot-parser is inconsistent: it strips outer quotes from attribute values
-/// but preserves them on node IDs, edge endpoints, and graph names. Escape
-/// sequences like `\"` are preserved as-is in both cases.
+/// `Id::Escaped` stores quoted identifiers verbatim: the surrounding `"..."` is
+/// included and escape sequences like `\"` are preserved as-is. This applies
+/// uniformly to node IDs, edge endpoints, graph names, and attribute values.
 ///
 /// This function:
-/// 1. Strips surrounding `"..."` if present (needed for node IDs / endpoints).
-/// 2. Unescapes `\"` -> `"` (needed for both -- attribute values still have escapes).
+/// 1. Strips surrounding `"..."` if present.
+/// 2. Unescapes `\"` -> `"`.
 ///
 /// We intentionally do NOT decode `\\` -> `\`. DOT uses `\n`, `\l`, `\r` as label
 /// formatting directives, and decoding `\\` would make `\\n` (literal backslash + n)
@@ -24,34 +26,36 @@ pub(crate) fn unquote(s: &str) -> String {
     inner.replace("\\\"", "\"")
 }
 
-type AstGraph<'a> = ast::Graph<(ast::ID<'a>, ast::ID<'a>)>;
-type AstStmt<'a> = ast::Stmt<(ast::ID<'a>, ast::ID<'a>)>;
-type AstAttrList<'a> = ast::AttrList<(ast::ID<'a>, ast::ID<'a>)>;
-type AstSubgraph<'a> = ast::Subgraph<(ast::ID<'a>, ast::ID<'a>)>;
-type AstEdgeStmt<'a> = ast::EdgeStmt<(ast::ID<'a>, ast::ID<'a>)>;
+/// Extract the raw text of an `Id`, including any surrounding quotes.
+fn id_to_string(id: &Id) -> String {
+    match id {
+        Id::Html(s) | Id::Escaped(s) | Id::Plain(s) | Id::Anonymous(s) => s.clone(),
+    }
+}
 
-/// Convert an `ast::ID` to a String. The ID's inner field is private, so
-/// we must use the `Into<String>` impl which consumes the value.
-fn id_to_string(id: &ast::ID) -> String {
-    let s: String = id.clone().into();
-    s
+/// Convert a graph or subgraph `Id` to an optional identifier.
+///
+/// graphviz-rust synthesizes a random `Id::Anonymous` token for unnamed graphs
+/// and subgraphs; those map to `None`.
+fn graph_id(id: &Id) -> Option<String> {
+    match id {
+        Id::Anonymous(_) => None,
+        _ => Some(unquote(&id_to_string(id))),
+    }
 }
 
 pub fn parse(input: &str) -> eyre::Result<DepGraph> {
-    // Preprocess input to work around dot-parser limitations.
-    // cargo-depgraph generates empty attribute lists "[ ]" which are valid DOT
-    // but rejected by dot-parser. Remove them before parsing.
-    let preprocessed = input.replace(" [ ]", "").replace(" []", "");
-
-    let ast_graph: AstGraph = ast::Graph::try_from(preprocessed.as_str())
-        .map_err(|e| eyre::eyre!("DOT parse error: {e}"))?;
+    let ast_graph = graphviz_rust::parse(input).map_err(|e| eyre::eyre!("DOT parse error: {e}"))?;
+    let (id, stmts) = match &ast_graph {
+        Graph::Graph { id, stmts, .. } | Graph::DiGraph { id, stmts, .. } => (id, stmts),
+    };
 
     let mut dep = DepGraph {
-        id: ast_graph.name.map(|n| unquote(&n)),
+        id: graph_id(id),
         ..Default::default()
     };
 
-    walk_stmts(&ast_graph.stmts.stmts, &mut dep);
+    walk_stmts(stmts, &mut dep);
     dep.nodes.sort_keys();
 
     Ok(dep)
@@ -59,31 +63,29 @@ pub fn parse(input: &str) -> eyre::Result<DepGraph> {
 
 /// Walk a list of AST statements, populating nodes, edges, attrs, and subgraphs
 /// on the given DepGraph.
-fn walk_stmts(stmts: &[AstStmt], dep: &mut DepGraph) {
+fn walk_stmts(stmts: &[Stmt], dep: &mut DepGraph) {
     let mut subgraphs = Vec::new();
 
     for stmt in stmts {
         match stmt {
-            AstStmt::NodeStmt(node_stmt) => {
-                add_node(node_stmt, dep);
+            Stmt::Node(node) => {
+                add_node(node, dep);
             }
-            AstStmt::EdgeStmt(edge_stmt) => {
+            Stmt::Edge(edge_stmt) => {
                 add_edges(edge_stmt, dep);
             }
-            AstStmt::AttrStmt(attr_stmt) => match attr_stmt {
-                ast::AttrStmt::Graph(attr_list) => {
-                    extract_graph_attrs(attr_list, &mut dep.attrs);
-                }
-                // `node [fontsize="12"]` and `edge [style=invis]` are default
-                // attribute statements -- rendering hints, not semantic data.
-                // The canonical::Graph conversion used to apply these per-node,
-                // but we skip them intentionally.
-                ast::AttrStmt::Node(_) | ast::AttrStmt::Edge(_) => {}
-            },
-            AstStmt::IDEq(k, v) => {
-                dep.attrs.insert(unquote(k), unquote(v));
+            Stmt::GAttribute(GraphAttributes::Graph(attr_list)) => {
+                extract_graph_attrs(attr_list, &mut dep.attrs);
             }
-            AstStmt::Subgraph(sub) => {
+            // `node [fontsize="12"]` and `edge [style=invis]` are default attribute statements
+            // attached to the graph. They're rendering aides, not semantic informat. We skip them
+            // intentionally.
+            Stmt::GAttribute(GraphAttributes::Node(_) | GraphAttributes::Edge(_)) => {}
+            Stmt::Attribute(Attribute(k, v)) => {
+                dep.attrs
+                    .insert(unquote(&id_to_string(k)), unquote(&id_to_string(v)));
+            }
+            Stmt::Subgraph(sub) => {
                 subgraphs.push(collect_subgraph(sub));
             }
         }
@@ -116,10 +118,10 @@ fn remove_implicit_duplicates(dep: &mut DepGraph) {
 /// Build a DepGraph from an AST subgraph.
 fn collect_subgraph(sub: &AstSubgraph) -> DepGraph {
     let mut dep = DepGraph {
-        id: sub.id.as_ref().map(|s| unquote(s)),
+        id: graph_id(&sub.id),
         ..Default::default()
     };
-    walk_stmts(&sub.stmts.stmts, &mut dep);
+    walk_stmts(&sub.stmts, &mut dep);
     dep.nodes.sort_keys();
     dep
 }
@@ -173,38 +175,35 @@ fn shape_to_node_type(shape: &str) -> Option<&'static str> {
     }
 }
 
-/// Add a node from a NodeStmt into the DepGraph, returning the unquoted node ID.
-fn add_node(node_stmt: &ast::NodeStmt<(ast::ID, ast::ID)>, dep: &mut DepGraph) -> String {
-    let id = unquote(&node_stmt.node.id);
+/// Add a node from a node statement into the DepGraph, returning the unquoted node ID.
+fn add_node(node: &AstNode, dep: &mut DepGraph) -> String {
+    let NodeId(node_id, _port) = &node.id;
+    let id = unquote(&id_to_string(node_id));
     let mut info = NodeInfo::new(id.clone());
     let mut explicit_type = None;
     let mut shape_value = None;
     let mut style_value = None;
 
-    if let Some(attr_list) = &node_stmt.attr {
-        for alist in &attr_list.elems {
-            for (k, v) in &alist.elems {
-                let key = unquote(&id_to_string(k));
-                let value = unquote(&id_to_string(v));
-                match key.as_str() {
-                    "label" => {
-                        info.label = value;
-                    }
-                    "type" => {
-                        explicit_type = Some(super::normalize_node_type(&value));
-                    }
-                    "shape" => {
-                        shape_value = Some(value.clone());
-                        info.attrs.insert(key, value);
-                    }
-                    "style" => {
-                        style_value = Some(value.clone());
-                        info.attrs.insert(key, value);
-                    }
-                    _ => {
-                        info.attrs.insert(key, value);
-                    }
-                }
+    for Attribute(k, v) in &node.attributes {
+        let key = unquote(&id_to_string(k));
+        let value = unquote(&id_to_string(v));
+        match key.as_str() {
+            "label" => {
+                info.label = value;
+            }
+            "type" => {
+                explicit_type = Some(super::normalize_node_type(&value));
+            }
+            "shape" => {
+                shape_value = Some(value.clone());
+                info.attrs.insert(key, value);
+            }
+            "style" => {
+                style_value = Some(value.clone());
+                info.attrs.insert(key, value);
+            }
+            _ => {
+                info.attrs.insert(key, value);
             }
         }
     }
@@ -228,42 +227,32 @@ fn add_node(node_stmt: &ast::NodeStmt<(ast::ID, ast::ID)>, dep: &mut DepGraph) -
     id
 }
 
-/// Flatten an EdgeStmt into individual edges and add them to the DepGraph.
-/// Handles chained edges (a -> b -> c) and subgraph endpoints ({ a b } -> c).
-fn add_edges(edge_stmt: &AstEdgeStmt, dep: &mut DepGraph) {
+/// Flatten an edge statement into individual edges and add them to the DepGraph.
+/// Handles chained edges (a -> b -> c) and subgraph endpoints (a -> subgraph { b c }).
+fn add_edges(edge_stmt: &graphviz_rust::dot_structures::Edge, dep: &mut DepGraph) {
     // Extract edge attributes (shared across all flattened edges).
     let mut edge_label = None;
     let mut edge_attrs = indexmap::IndexMap::new();
-    if let Some(attr_list) = &edge_stmt.attr {
-        for alist in &attr_list.elems {
-            for (k, v) in &alist.elems {
-                let key = unquote(&id_to_string(k));
-                let value = unquote(&id_to_string(v));
-                if key == "label" {
-                    edge_label = Some(value);
-                } else {
-                    edge_attrs.insert(key, value);
-                }
-            }
+    for Attribute(k, v) in &edge_stmt.attributes {
+        let key = unquote(&id_to_string(k));
+        let value = unquote(&id_to_string(v));
+        if key == "label" {
+            edge_label = Some(value);
+        } else {
+            edge_attrs.insert(key, value);
         }
     }
 
     // Collect all endpoints in the chain: from -> to1 -> to2 -> ...
-    let mut endpoints = Vec::new();
-    endpoints.push(edge_stmt.from.as_ref());
-    let mut rhs = &edge_stmt.next;
-    loop {
-        endpoints.push(rhs.to.as_ref());
-        match &rhs.next {
-            Some(next) => rhs = next,
-            None => break,
-        }
-    }
+    let endpoints: Vec<&Vertex> = match &edge_stmt.ty {
+        EdgeTy::Pair(from, to) => vec![from, to],
+        EdgeTy::Chain(vertices) => vertices.iter().collect(),
+    };
 
     // For each consecutive pair, create edges between all node IDs.
     for pair in endpoints.windows(2) {
-        let from_ids = endpoint_node_ids(&pair[0], dep);
-        let to_ids = endpoint_node_ids(&pair[1], dep);
+        let from_ids = endpoint_node_ids(pair[0], dep);
+        let to_ids = endpoint_node_ids(pair[1], dep);
         for from_id in &from_ids {
             for to_id in &to_ids {
                 // Ensure implicit nodes exist.
@@ -286,16 +275,13 @@ fn add_edges(edge_stmt: &AstEdgeStmt, dep: &mut DepGraph) {
 
 /// Extract node IDs from an edge endpoint, which may be a single node or an
 /// anonymous subgraph containing multiple nodes.
-fn endpoint_node_ids(
-    endpoint: &Either<&ast::NodeID, &AstSubgraph>,
-    dep: &mut DepGraph,
-) -> Vec<String> {
+fn endpoint_node_ids(endpoint: &Vertex, dep: &mut DepGraph) -> Vec<String> {
     match endpoint {
-        Either::Left(node_id) => vec![unquote(&node_id.id)],
-        Either::Right(sub) => {
+        Vertex::N(NodeId(id, _port)) => vec![unquote(&id_to_string(id))],
+        Vertex::S(sub) => {
             // Anonymous subgraph as edge endpoint: collect all node IDs.
             let mut ids = Vec::new();
-            collect_endpoint_ids(&sub.stmts.stmts, &mut ids, dep);
+            collect_endpoint_ids(&sub.stmts, &mut ids, dep);
             ids
         }
     }
@@ -303,94 +289,84 @@ fn endpoint_node_ids(
 
 /// Recursively collect node IDs from statements inside an anonymous subgraph
 /// used as an edge endpoint.
-fn collect_endpoint_ids(stmts: &[AstStmt], ids: &mut Vec<String>, dep: &mut DepGraph) {
+fn collect_endpoint_ids(stmts: &[Stmt], ids: &mut Vec<String>, dep: &mut DepGraph) {
     for stmt in stmts {
         match stmt {
-            AstStmt::NodeStmt(node_stmt) => {
-                ids.push(add_node(node_stmt, dep));
+            Stmt::Node(node) => {
+                ids.push(add_node(node, dep));
             }
-            AstStmt::EdgeStmt(edge_stmt) => {
+            Stmt::Edge(edge_stmt) => {
                 // Edges inside anonymous subgraph endpoints still define nodes.
                 add_edges(edge_stmt, dep);
                 // Collect the from-endpoint node IDs.
-                let mut inner_ids = endpoint_node_ids(&edge_stmt.from.as_ref(), dep);
-                ids.append(&mut inner_ids);
+                let from = match &edge_stmt.ty {
+                    EdgeTy::Pair(from, _) => Some(from),
+                    EdgeTy::Chain(vertices) => vertices.first(),
+                };
+                if let Some(from) = from {
+                    let mut inner_ids = endpoint_node_ids(from, dep);
+                    ids.append(&mut inner_ids);
+                }
             }
-            AstStmt::Subgraph(sub) => {
-                collect_endpoint_ids(&sub.stmts.stmts, ids, dep);
+            Stmt::Subgraph(sub) => {
+                collect_endpoint_ids(&sub.stmts, ids, dep);
             }
             _ => {}
         }
     }
 }
 
-/// Extract key-value pairs from an AttrList into the attrs map.
-fn extract_graph_attrs(attr_list: &AstAttrList, attrs: &mut indexmap::IndexMap<String, String>) {
-    for alist in &attr_list.elems {
-        for (k, v) in &alist.elems {
-            attrs.insert(unquote(&id_to_string(k)), unquote(&id_to_string(v)));
-        }
+/// Extract key-value pairs from an attribute list into the attrs map.
+fn extract_graph_attrs(attr_list: &[Attribute], attrs: &mut indexmap::IndexMap<String, String>) {
+    for Attribute(k, v) in attr_list {
+        attrs.insert(unquote(&id_to_string(k)), unquote(&id_to_string(v)));
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use dot_parser::canonical;
-
     use super::*;
 
     #[test]
-    fn dot_parser_behavior() {
-        let ast = ast::Graph::try_from(r#"digraph { a [label="My Label"]; "quoted node" -> a; }"#)
-            .unwrap();
-        let graph = canonical::Graph::from(ast);
+    fn graphviz_rust_behavior() {
+        // Test the upstream parser behaviors that unquote() depends on:
+        //
+        // Quoted identifiers (Id::Escaped) keep their surrounding quotes AND their escape sequences
+        // verbatim, for attribute values and node IDs alike.
+        let graph = parse(
+            r#"digraph { a [label="say \"hi\"", tooltip="path\\here"]; "quoted node" -> a; }"#,
+        )
+        .unwrap();
 
-        // Attribute value: parser strips outer quotes, gives bare text.
-        let (_, node_a) = graph.nodes.set.iter().find(|(id, _)| *id == "a").unwrap();
-        let (_, val) = &node_a.attr.elems[0];
-        let val_str: String = val.clone().into();
-        assert_eq!(val_str, "My Label");
-
-        // Node ID: parser preserves outer quotes on quoted identifiers.
-        assert!(graph.nodes.set.contains_key("\"quoted node\""));
-        assert!(!graph.nodes.set.contains_key("quoted node"));
-
-        // Edge endpoint: quotes also preserved.
-        assert_eq!(graph.edges.set[0].from, "\"quoted node\"");
+        assert_eq!(graph.nodes["a"].label.as_str(), r#"say "hi""#);
+        assert_eq!(graph.nodes["a"].attrs["tooltip"], r"path\\here");
+        assert!(graph.nodes.contains_key("quoted node"));
+        assert!(!graph.nodes.contains_key("\"quoted node\""));
+        assert_eq!(graph.edges[0].from, "quoted node");
     }
 
     #[test]
-    fn dot_parser_preserves_escape_sequences() {
-        let ast =
-            ast::Graph::try_from(r#"digraph { a [label="say \"hi\"", tooltip="path\\here"]; }"#)
-                .unwrap();
-        let graph = canonical::Graph::from(ast);
+    fn empty_attr_lists() {
+        // cargo-depgraph generates empty attribute lists "[ ]", which are valid DOT. dot-parser
+        // rejected them and needed a preprocessing hack; graphviz-rust parses them directly.
+        let graph = parse("digraph { a [ ]; b []; a -> b [ ]; }").unwrap();
+        assert_eq!(graph.nodes.len(), 2);
+        assert_eq!(graph.edges.len(), 1);
+        assert!(graph.nodes["a"].attrs.is_empty());
+    }
 
-        let (_, node) = graph.nodes.set.iter().find(|(id, _)| *id == "a").unwrap();
-        let vals: Vec<(String, String)> = node
-            .attr
-            .elems
+    #[test]
+    fn subgraph_edge_endpoint() {
+        // graphviz-rust only accepts subgraph edge endpoints in the `a -> subgraph { ... }` form
+        // (bare `{ b c } -> a` fails to parse).
+        let graph = parse("digraph { a -> subgraph { b c }; }").unwrap();
+        assert_eq!(graph.nodes.len(), 3);
+        let pairs: Vec<(&str, &str)> = graph
+            .edges
             .iter()
-            .map(|(k, v)| {
-                let k: String = k.clone().into();
-                let v: String = v.clone().into();
-                (k, v)
-            })
+            .map(|e| (e.from.as_str(), e.to.as_str()))
             .collect();
-
-        // Escaped quotes: parser gives us the raw escape sequence, NOT unescaped.
-        let label_val = &vals.iter().find(|(k, _)| k == "label").unwrap().1;
-        assert_eq!(
-            label_val, r#"say \"hi\""#,
-            "dot-parser preserves \\\" as-is (does not unescape)"
-        );
-
-        // Escaped backslash: parser gives us the raw escape sequence.
-        let tooltip_val = &vals.iter().find(|(k, _)| k == "tooltip").unwrap().1;
-        assert_eq!(
-            tooltip_val, r"path\\here",
-            "dot-parser preserves \\\\ as-is (does not unescape)"
-        );
+        assert_eq!(pairs, vec![("a", "b"), ("a", "c")]);
     }
 
     #[test]

@@ -295,7 +295,6 @@ digraph {
     );
 }
 
-#[cfg(feature = "dot")]
 #[test]
 fn exclude_preserve_connectivity_subgraph() {
     // subgraph { a -> b -> c }: exclude b, bypass a -> c stays in subgraph
@@ -339,7 +338,6 @@ digraph {
     );
 }
 
-#[cfg(feature = "dot")]
 #[test]
 fn exclude_dot_input() {
     let dot_input = "\
@@ -695,7 +693,6 @@ fn cycles_self_loop_ignored() {
     assert_eq!(stdout, "#\n");
 }
 
-#[cfg(feature = "dot")]
 #[test]
 fn slice_removes_cross_subgraph_edges() {
     let dot_input = "\
@@ -730,7 +727,6 @@ digraph {
     );
 }
 
-#[cfg(feature = "dot")]
 #[test]
 fn slice_preserves_root_nodes_by_default() {
     let dot_input = "\
@@ -761,7 +757,6 @@ digraph {
     );
 }
 
-#[cfg(feature = "dot")]
 #[test]
 fn slice_drop_orphans() {
     let dot_input = "\
@@ -829,7 +824,6 @@ fn slice_no_subgraphs_drop_orphans() {
     assert_eq!(stdout, "#\n");
 }
 
-#[cfg(feature = "dot")]
 #[test]
 fn slice_recursive() {
     // Outer subgraph has node a and a nested inner subgraph with node b.

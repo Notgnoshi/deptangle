@@ -9,18 +9,13 @@ description = "Parse, detect, and emit dependency graph formats"
 cargo_metadata.workspace = true
 clap.workspace = true
 deptangle-graph.workspace = true
-dot-parser = { workspace = true, optional = true }
-either = { workspace = true, optional = true }
 eyre.workspace = true
+graphviz-rust.workspace = true
 indexmap.workspace = true
 mermaid-rs-renderer.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 tracing.workspace = true
-
-[features]
-default = ["dot"]
-dot = ["dep:dot-parser", "dep:either"]
 
 [dev-dependencies]
 pretty_assertions.workspace = true

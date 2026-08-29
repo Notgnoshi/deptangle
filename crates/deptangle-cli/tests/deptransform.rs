@@ -453,7 +453,6 @@ fn merge_requires_two_files() {
 }
 
 #[test]
-#[cfg(feature = "dot")]
 fn merge_preserves_subgraphs() {
     let mut f1 = NamedTempFile::new().unwrap();
     write!(
@@ -510,7 +509,6 @@ digraph {
 }
 
 #[test]
-#[cfg(feature = "dot")]
 fn flatten_removes_subgraphs() {
     let graph = "\
 digraph {

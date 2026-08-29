@@ -36,7 +36,6 @@ digraph {
     );
 }
 
-#[cfg(feature = "dot")]
 #[test]
 fn dot_to_tgf() {
     let input = include_str!("../../../data/depconv/small.dot");
@@ -52,7 +51,6 @@ fn dot_to_tgf() {
     );
 }
 
-#[cfg(feature = "dot")]
 #[test]
 fn tgf_to_dot_to_tgf_roundtrip() {
     let input = "a\tAlpha\nb\tBravo\n#\na\tb\tuses\n";
@@ -344,7 +342,6 @@ fn pathlist_to_pathlist_fixture() {
     assert_eq!(stdout, input);
 }
 
-#[cfg(feature = "dot")]
 #[test]
 fn dot_to_dot() {
     let input = include_str!("../../../data/depconv/small.dot");
@@ -370,7 +367,6 @@ digraph deps {
     );
 }
 
-#[cfg(feature = "dot")]
 #[test]
 fn dot_subgraph_to_depfile() {
     let input = "\
@@ -391,7 +387,6 @@ digraph {
     assert_eq!(stdout, "top: a\na: b\nb: c\n");
 }
 
-#[cfg(feature = "dot")]
 #[test]
 fn cmake_dot_preserves_subgraph() {
     let input = include_str!("../../../data/depconv/cmake.geos.dot");
@@ -594,7 +589,6 @@ fn cargo_metadata_to_dot() {
     );
 }
 
-#[cfg(feature = "dot")]
 #[test]
 fn dot_roundtrip_with_type() {
     let input = r#"digraph {
@@ -654,7 +648,6 @@ flowchart LR
     );
 }
 
-#[cfg(feature = "dot")]
 #[test]
 fn mermaid_node_types() {
     let input = r#"digraph {
@@ -686,7 +679,6 @@ flowchart LR
     );
 }
 
-#[cfg(feature = "dot")]
 #[test]
 fn dot_to_mermaid_with_subgraphs() {
     let input = r#"digraph deps {

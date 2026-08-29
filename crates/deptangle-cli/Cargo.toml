@@ -17,10 +17,6 @@ globset.workspace = true
 tracing.workspace = true
 tracing-subscriber.workspace = true
 
-[features]
-default = ["dot"]
-dot = ["deptangle-io/dot"]
-
 [dev-dependencies]
 deptangle-test.workspace = true
 pretty_assertions.workspace = true
