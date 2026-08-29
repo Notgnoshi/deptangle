@@ -1,0 +1,22 @@
+[package]
+name = "deptangle-cli"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Tools to interrogate and detangle dependency graphs"
+
+[dependencies]
+clap.workspace = true
+color-eyre.workspace = true
+deptangle-io.workspace = true
+eyre.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+
+[features]
+default = ["dot"]
+dot = ["deptangle-io/dot"]
+
+[dev-dependencies]
+deptangle-test.workspace = true
+pretty_assertions.workspace = true

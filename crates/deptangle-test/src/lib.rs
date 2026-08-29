@@ -1,5 +1,8 @@
 use std::process::Output;
 
+// Re-export so that consumers don't have to depend on assert_cmd directly
+pub use assert_cmd::Command;
+
 pub mod prelude {
     pub use crate::{CommandExt, tempfile, tool};
 }
@@ -55,7 +58,7 @@ pub fn tempfile<S: AsRef<str>>(contents: S) -> eyre::Result<tempfile::NamedTempF
 #[macro_export]
 macro_rules! tool {
     ($name:literal) => {{
-        let mut cmd = assert_cmd::Command::new(env!(concat!("CARGO_BIN_EXE_", $name)));
+        let mut cmd = $crate::Command::new(env!(concat!("CARGO_BIN_EXE_", $name)));
         cmd.arg("--log-level=TRACE");
         cmd
     }};
