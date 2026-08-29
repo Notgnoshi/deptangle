@@ -1,0 +1,228 @@
+#!/bin/bash
+set -o errexit
+set -o pipefail
+set -o nounset
+set -o noclobber
+
+DEPTANGLE_REPO_ROOT=$(git rev-parse --show-toplevel)
+
+RED="\033[31m"
+GREEN="\033[32m"
+BLUE="\033[34m"
+RESET="\033[0m"
+
+debug() {
+    echo -e "${BLUE}DEBUG:${RESET} $*" >&2
+}
+
+info() {
+    echo -e "${GREEN}INFO:${RESET} $*" >&2
+}
+
+error() {
+    echo -e "${RED}ERROR:${RESET} $*" >&2
+}
+
+usage() {
+    echo "Install/update/uninstall the deptangle tools and scripts"
+    echo
+    echo "Usage: $0 [--help]"
+    echo
+    echo "  --help, -h              Show this help and exit"
+    echo "  --dry-run,-n            Don't actually install the tools"
+    echo "  --remove,-r             Uninstall the deptangle tools"
+    echo "  --prefix,-p <PREFIX>    The installation prefix. By default, tries paths in the following order:"
+    echo "                            1. ~/.local/bin/, if in the users \$PATH"
+    echo "                            2. ~/bin/, if in the users \$PATH"
+    echo "                            3. \$CARGO_HOME, if set"
+    echo "                            4. ~/.cargo/bin/, if present"
+}
+
+check_dependencies() {
+    if ! command -v jq &>/dev/null; then
+        error "jq is required but not installed."
+        return 1
+    fi
+}
+
+default_prefix() {
+    local prefix=""
+    if [[ ":$PATH:" == *":$HOME/.local/bin:"* ]]; then
+        prefix="$HOME/.local"
+    elif [[ ":$PATH:" == *":$HOME/bin:"* ]]; then
+        prefix="$HOME/bin"
+    elif [[ -n "${CARGO_HOME+x}" ]]; then
+        prefix="$CARGO_HOME"
+    elif [[ -d ~/.cargo ]]; then
+        prefix="$HOME/.cargo"
+    fi
+
+    echo "$prefix"
+}
+
+deptangle_binaries() {
+    cargo metadata --no-deps --format-version 1 |
+        jq -r '.packages[] | .targets[] | select(.kind[] == "bin") | .name'
+}
+
+deptangle_packages_with_bins() {
+    # Returns package paths for packages that have binary targets
+    cargo metadata --no-deps --format-version 1 |
+        jq -r '.packages[] | select(.targets[] | .kind[] == "bin") | .manifest_path' |
+        sort -u |
+        while read -r manifest; do
+            dirname "$manifest"
+        done
+}
+
+deptangle_bin_packages() {
+    # Returns package names for packages that have binary targets, which is what
+    # 'cargo uninstall' expects (bin names are not package specs)
+    cargo metadata --no-deps --format-version 1 |
+        jq -r '.packages[] | select(.targets[] | .kind[] == "bin") | .name' |
+        sort -u
+}
+
+package_binaries() {
+    # Get binaries for a specific package
+    local -r pkg_path="$1"
+    cargo metadata --no-deps --format-version 1 |
+        jq -r --arg pkg_path "$pkg_path/Cargo.toml" \
+            '.packages[] | select(.manifest_path == $pkg_path) | .targets[] | select(.kind[] == "bin") | .name'
+}
+
+deptangle_scripts() {
+    for script in "$DEPTANGLE_REPO_ROOT/scripts"/*; do
+        echo "$script"
+    done
+}
+
+install_deptangle() {
+    local -r dry_run="$1"
+    local -r prefix="$2"
+
+    info "Installing Rust binaries to $prefix ..."
+
+    # Install from each workspace package that has binaries
+    while read -r pkg_path; do
+        local cargo_cmd=(
+            cargo install --path "$pkg_path" --root "$prefix"
+        )
+
+        # Add --bin flag for each binary in this package
+        local bins=()
+        while read -r bin; do
+            bins+=("$bin")
+            cargo_cmd+=(--bin "$bin")
+        done < <(package_binaries "$pkg_path")
+
+        if [[ ${#bins[@]} -eq 0 ]]; then
+            continue
+        fi
+
+        if [[ "$dry_run" = "true" ]]; then
+            info "Dry run. Would have run:"
+            echo "  ${cargo_cmd[*]}"
+        else
+            info "Installing from $(basename "$pkg_path"): ${bins[*]}"
+            "${cargo_cmd[@]}"
+        fi
+    done < <(deptangle_packages_with_bins)
+
+    info "Installing project scripts to $prefix ..."
+    for script in $(deptangle_scripts); do
+        if [[ "$dry_run" = "true" ]]; then
+            info "Dry run. Would have installed '$script'"
+        else
+            info "Installing $script ..."
+            if [[ ! -d "$prefix/bin" ]]; then
+                mkdir -p "$prefix/bin"
+            fi
+            cp "$script" "$prefix/bin"
+        fi
+    done
+}
+
+uninstall_deptangle() {
+    local -r dry_run="$1"
+    local -r prefix="$2"
+
+    info "Uninstalling deptangle binaries ..."
+    for pkg in $(deptangle_bin_packages); do
+        if [[ "$dry_run" = "false" ]]; then
+            info "Uninstalling $pkg ..."
+            cargo uninstall --root "$prefix" "$pkg" || true
+        else
+            echo "Dry run. Would have run: 'cargo uninstall --root $prefix $pkg'"
+        fi
+    done
+    info "Uninstalling project scripts from $prefix ..."
+    for script in $(deptangle_scripts); do
+        script="$(basename -- "$script")"
+        script="$prefix/bin/$script"
+        if [[ -f "$script" ]]; then
+            if [[ "$dry_run" = "true" ]]; then
+                info "Dry run. Would have deleted '$script' ..."
+            else
+                info "Deleting '$script' ..."
+                rm "$script"
+            fi
+        fi
+    done
+}
+
+main() {
+    local operation="install"
+    local dry_run="false"
+    local prefix
+    prefix="$(default_prefix)"
+
+    # Check for required dependencies
+    if ! check_dependencies; then
+        return 1
+    fi
+
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+        --help | -h)
+            usage
+            exit 0
+            ;;
+        --dry-run | -n | -d)
+            dry_run="true"
+            ;;
+        --remove | --uninstall | -r | -u)
+            operation="uninstall"
+            ;;
+        --prefix | -p)
+            prefix="$2"
+            shift
+            ;;
+        -*)
+            error "Unexpected option: '$1'"
+            exit 1
+            ;;
+        *)
+            error "Unexpected positional argument: '$1'"
+            exit 1
+            ;;
+        esac
+        shift
+    done
+
+    if [[ ! -d "$prefix" ]]; then
+        error "No such directory '$prefix'"
+        return 1
+    fi
+
+    case "$operation" in
+    install)
+        install_deptangle "$dry_run" "$prefix"
+        ;;
+    uninstall)
+        uninstall_deptangle "$dry_run" "$prefix"
+        ;;
+    esac
+}
+
+main "$@"

@@ -14,6 +14,7 @@ Tools to interrogate and detangle dependency graphs
 * [depcluster](#depcluster) - cluster dependency graphs using community detection
 * [graphdiff](#graphdiff) - compare two dependency graphs
 * [minpath](#minpath) - shorten file paths to minimal unique suffixes
+* [bbclasses](#bbclasses) - generate BitBake recipe inheritance diagrams
 
 # Philosophy
 
@@ -28,7 +29,8 @@ pipes. Any ancillary output is emitted on stderr.
 You can install the tools with
 
 ```sh
-cargo install --path crates/deptangle-cli --root ~/.local/
+./install --prefix ~/.local/
+./install --uninstall --prefix ~/.local/
 ```
 
 You can also just experiment with the tools by
@@ -248,3 +250,36 @@ tests/main.rs
 ```
 
 Multiple options are available to customize and tune the output. See `minpath --help` for details.
+
+## bbclasses
+
+The [bbclasses](./scripts/bbclasses) script can parse BitBake recipes to generate an inheritance
+diagram. It tries to evaluate variable expansion, and needs to run in your BitBake environment to
+work properly.
+
+```sh
+bbclasses --group-by-layer curl >curl.dot
+```
+
+```mermaid
+flowchart LR
+    subgraph meta[meta]
+        poky/meta/classes-global/debian.bbclass{{"poky/meta/classes-global/debian.bbclass"}}
+        poky/meta/classes-global/package.bbclass{{"poky/meta/classes-global/package.bbclass"}}
+        poky/meta/classes-recipe/autotools.bbclass{{"poky/meta/classes-recipe/autotools.bbclass"}}
+        poky/meta/classes-recipe/ptest.bbclass{{"poky/meta/classes-recipe/ptest.bbclass"}}
+        poky/meta/conf/distro/include/ptest-packagelists.inc[["poky/meta/conf/distro/include/ptest-packagelists.inc"]]
+        poky/meta/recipes-support/curl/curl_8.7.1.bb["poky/meta/recipes-support/curl/curl_8.7.1.bb"]
+    end
+    subgraph meta-oem[meta-oem]
+        meta-oem/classes/dynamic-packagearch.bbclass{{"meta-oem/classes/dynamic-packagearch.bbclass"}}
+    end
+    meta-work/recipes-support/curl/curl__.bbappend(["meta-work/recipes-support/curl/curl_%.bbappend"])
+    meta-oem/classes/dynamic-packagearch.bbclass -->|"INHERIT"| poky/meta/recipes-support/curl/curl_8.7.1.bb
+    poky/meta/classes-global/debian.bbclass -->|"INHERIT"| poky/meta/recipes-support/curl/curl_8.7.1.bb
+    poky/meta/classes-global/package.bbclass -->|"inherit"| poky/meta/classes-global/debian.bbclass
+    poky/meta/classes-recipe/autotools.bbclass -->|"inherit"| poky/meta/recipes-support/curl/curl_8.7.1.bb
+    poky/meta/classes-recipe/ptest.bbclass -->|"inherit"| poky/meta/recipes-support/curl/curl_8.7.1.bb
+    poky/meta/conf/distro/include/ptest-packagelists.inc -->|"require"| poky/meta/classes-recipe/ptest.bbclass
+    poky/meta/recipes-support/curl/curl_8.7.1.bb -->|"appends"| meta-work/recipes-support/curl/curl__.bbappend
+```
