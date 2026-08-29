@@ -12,6 +12,7 @@ license = "MIT"
 deptangle-graph = { path = "crates/deptangle-graph" }
 deptangle-io = { path = "crates/deptangle-io" }
 deptangle-minpath = { path = "crates/deptangle-minpath" }
+deptangle-ops = { path = "crates/deptangle-ops" }
 deptangle-test = { path = "crates/deptangle-test" }
 
 # External dependencies
@@ -23,11 +24,14 @@ dot-parser = "0.6.1"
 either = "1.18.0"
 eyre = "0.6.14"
 globset = "0.4.20"
+graphrs = "0.12.0"
 indexmap = "2.14.1"
 mermaid-rs-renderer = { version = "0.3.1", default-features = false }
 pathdiff = "0.2.3"
 petgraph = "0.8.3"
 pretty_assertions = "1.4.1"
+rand = "0.10.2"
+regex = "1.13.1"
 serde = { version = "1.0.229", features = ["derive"] }
 serde_json = "1.0.151"
 tempfile = "3.27.0"
