@@ -12,6 +12,7 @@ Tools to interrogate and detangle dependency graphs
 * [deptransform](#deptransform) -- transform dependency graphs
 * [depquery](#depquery) -- query properties of dependency graphs
 * [depcluster](#depcluster) -- cluster dependency graphs using community detection
+* [graphdiff](#graphdiff) -- compare two dependency graphs
 
 # Philosophy
 
@@ -188,4 +189,42 @@ flowchart LR
         d --> f
         e --> f
     end
+```
+
+## graphdiff
+
+Compare two dependency graphs and report what changed. Nodes are matched by ID, and edges by their
+endpoints.
+
+`graphdiff` supports several subcommands:
+
+* `graphdiff annotate` - output the combined graph with changes highlighted (added, removed, changed
+  nodes/edges get distinct attributes)
+* `graphdiff list` - tab-delimited list of changes (`+` added, `-` removed, `~` changed, `>` moved)
+* `graphdiff summary` - tab-delimited counts of each change type
+* `graphdiff subtract` - set difference: nodes and edges only in the first graph
+
+```sh
+$ cat before.tgf
+a Alpha
+b Bravo
+#
+a b
+
+$ cat after.tgf
+b Bravo
+c Charlie
+#
+b c
+
+$ graphdiff annotate before.tgf after.tgf -O mermaid
+```
+
+```mermaid
+flowchart LR
+    b["Bravo"]
+    c["+ Charlie"]
+    a["- Alpha"]
+    b --> c
+    a --> b
 ```
