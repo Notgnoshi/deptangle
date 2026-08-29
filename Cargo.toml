@@ -9,12 +9,15 @@ license = "MIT"
 
 [workspace.dependencies]
 # Internal crates
+deptangle-graph = { path = "crates/deptangle-graph" }
 deptangle-test = { path = "crates/deptangle-test" }
 
 # External dependencies
 assert_cmd = { version = "2.2.2", features = ["color-auto"] }
 ctor = "1.0.13"
 eyre = "0.6.14"
+indexmap = "2.14.1"
+petgraph = "0.8.3"
 tempfile = "3.27.0"
 tracing = "0.1.44"
 tracing-subscriber = { version = "0.3.23", features = ["env-filter"] }
