@@ -342,11 +342,13 @@ version = "0.1.0"
 dependencies = [
  "clap",
  "color-eyre",
+ "deptangle-graph",
  "deptangle-io",
  "deptangle-ops",
  "deptangle-test",
  "eyre",
  "pretty_assertions",
+ "tempfile",
  "tracing",
  "tracing-subscriber",
 ]

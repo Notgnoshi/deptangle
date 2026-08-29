@@ -9,6 +9,7 @@ Tools to interrogate and detangle dependency graphs
 
 * [depconv](#depconv) -- convert dependency graphs between formats
 * [depfilter](#depfilter) -- filter or select subsets of dependency graphs
+* [deptransform](#deptransform) -- transform dependency graphs
 
 # Philosophy
 
@@ -114,4 +115,26 @@ digraph {
     anstream [label="v0.6.21 anstream"];
     ...
 }
+```
+
+## deptransform
+
+Structural transformations on dependency graphs. Works on the same formats as `depconv`, and is
+designed to be chained with pipes.
+
+The `deptransform` tool supports the following subcommands:
+
+* `deptransform reverse` - reverse the direction of all edges in the graph
+* `deptransform simplify` - remove redundant edges (e.g. if A->B and B->C, then A->C is redundant)
+* `deptransform shorten` - shorten node IDs that look like paths (`minpath`, but for node IDs)
+* `deptransform sub` - `sed`, but for node IDs and node / edge attributes
+* `deptransform merge` - merge multiple graphs into one
+* `deptransform flatten` - recursively flatten subgraphs into the parent graph
+
+```sh
+# Collapse bitbake task-level nodes IDs (acl-native.do_* -> acl-native), then remove the
+# now-misleading node labels
+$ cat data/depconv/bitbake.curl.task-depends.dot |
+    deptransform sub --key=id 's/\.do_.*//' |
+    deptransform sub --key=node:label 's/.*//'
 ```
