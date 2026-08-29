@@ -7,12 +7,13 @@ Tools to interrogate and detangle dependency graphs
 
 ## Table of contents
 
-* [depconv](#depconv) -- convert dependency graphs between formats
-* [depfilter](#depfilter) -- filter or select subsets of dependency graphs
-* [deptransform](#deptransform) -- transform dependency graphs
-* [depquery](#depquery) -- query properties of dependency graphs
-* [depcluster](#depcluster) -- cluster dependency graphs using community detection
-* [graphdiff](#graphdiff) -- compare two dependency graphs
+* [depconv](#depconv) - convert dependency graphs between formats
+* [depfilter](#depfilter) - filter or select subsets of dependency graphs
+* [deptransform](#deptransform) - transform dependency graphs
+* [depquery](#depquery) - query properties of dependency graphs
+* [depcluster](#depcluster) - cluster dependency graphs using community detection
+* [graphdiff](#graphdiff) - compare two dependency graphs
+* [minpath](#minpath) - shorten file paths to minimal unique suffixes
 
 # Philosophy
 
@@ -228,3 +229,22 @@ flowchart LR
     b --> c
     a --> b
 ```
+
+## minpath
+
+Shorten file paths to the minimal unique suffix. Useful for displaying lists of files in a compact
+way while keeping them distinguishable.
+
+```sh
+$ minpath <<EOF
+/home/user/project/src/main.rs
+/home/user/project/src/lib.rs
+/home/user/project/tests/main.rs
+EOF
+
+src/main.rs
+lib.rs
+tests/main.rs
+```
+
+Multiple options are available to customize and tune the output. See `minpath --help` for details.
