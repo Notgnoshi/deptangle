@@ -1,0 +1,9 @@
+fmt deptangle-fmt
+utils deptangle-utils
+depgraph deptangle-depgraph
+test deptangle-test
+#
+depgraph utils normal
+depgraph fmt normal
+test utils dev
+fmt utils normal

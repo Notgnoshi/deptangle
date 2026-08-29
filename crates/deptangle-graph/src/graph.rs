@@ -17,11 +17,11 @@ pub struct DepGraph {
     pub subgraphs: Vec<DepGraph>,
 
     /// Cached flattened nodes from [`Self::all_nodes`]. Lazily populated on first access.
-    pub(crate) all_nodes_cache: OnceCell<IndexMap<String, NodeInfo>>,
+    pub all_nodes_cache: OnceCell<IndexMap<String, NodeInfo>>,
     /// Cached flattened edges from [`Self::all_edges`]. Lazily populated on first access.
-    pub(crate) all_edges_cache: OnceCell<Vec<Edge>>,
+    pub all_edges_cache: OnceCell<Vec<Edge>>,
     /// Cached adjacency list from [`Self::adjacency_list`]. Lazily populated on first access.
-    pub(crate) adjacency_cache: OnceCell<IndexMap<String, Vec<String>>>,
+    pub adjacency_cache: OnceCell<IndexMap<String, Vec<String>>>,
 }
 
 impl DepGraph {

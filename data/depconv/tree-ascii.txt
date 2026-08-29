@@ -1,0 +1,71 @@
+crates
+|-- deptangle-can
+|   |-- Cargo.toml
+|   |-- src
+|   |   |-- bin
+|   |   |-- candump.rs
+|   |   |-- fastpacket.rs
+|   |   |-- frame.rs
+|   |   |-- lib.rs
+|   |   |-- nmea2000.rs
+|   |   |-- session.rs
+|   |   `-- tp.rs
+|   `-- tests
+|       |-- can2csv.rs
+|       `-- canstruct.rs
+|-- deptangle-csv
+|   |-- Cargo.toml
+|   |-- src
+|   |   |-- bin
+|   |   |-- csv.rs
+|   |   `-- lib.rs
+|   `-- tests
+|       `-- csvcat.rs
+|-- deptangle-depgraph
+|   |-- Cargo.toml
+|   |-- src
+|   |   |-- bin
+|   |   |-- detect.rs
+|   |   |-- emit
+|   |   |-- lib.rs
+|   |   `-- parse
+|   `-- tests
+|       `-- depconv.rs
+|-- deptangle-minpath
+|   |-- Cargo.toml
+|   |-- src
+|   |   |-- abbreviate.rs
+|   |   |-- bin
+|   |   |-- common_prefix.rs
+|   |   |-- homedir.rs
+|   |   |-- lib.rs
+|   |   |-- normalize.rs
+|   |   |-- prefix.rs
+|   |   |-- single_letter.rs
+|   |   |-- transform.rs
+|   |   `-- unique_suffix.rs
+|   `-- tests
+|       `-- minpath.rs
+|-- deptangle-stats
+|   |-- Cargo.toml
+|   |-- src
+|   |   |-- bin
+|   |   |-- lib.rs
+|   |   |-- plot.rs
+|   |   `-- stats.rs
+|   `-- tests
+|       |-- csvdelta.rs
+|       `-- csvstats.rs
+|-- deptangle-test
+|   |-- Cargo.toml
+|   `-- src
+|       `-- lib.rs
+`-- deptangle-utils
+    |-- Cargo.toml
+    `-- src
+        |-- bin
+        |-- counter.rs
+        |-- lib.rs
+        `-- stdio.rs
+
+28 directories, 41 files
