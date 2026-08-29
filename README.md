@@ -10,6 +10,7 @@ Tools to interrogate and detangle dependency graphs
 * [depconv](#depconv) -- convert dependency graphs between formats
 * [depfilter](#depfilter) -- filter or select subsets of dependency graphs
 * [deptransform](#deptransform) -- transform dependency graphs
+* [depquery](#depquery) -- query properties of dependency graphs
 
 # Philosophy
 
@@ -138,3 +139,21 @@ $ cat data/depconv/bitbake.curl.task-depends.dot |
     deptransform sub --key=id 's/\.do_.*//' |
     deptransform sub --key=node:label 's/.*//'
 ```
+
+## depquery
+
+Query properties of dependency graphs.
+
+```sh
+# Show the 5 crates with the most dependencies:
+$ cargo metadata --format-version=1 |
+    depquery nodes --sort out-degree --limit 5
+deptangle-io        12
+deptangle-cli       11
+deptangle-ops       11
+graphrs             11
+tracing-subscriber  10
+```
+
+The `depquery` tool supports outputting `nodes`, `edges`, and `metrics`. The output is intended to
+be machine-readable, and is tab-separated.
