@@ -1,0 +1,39 @@
+[workspace]
+members = ["crates/*"]
+resolver = "3"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+
+[workspace.dependencies]
+# Internal crates
+deptangle-graph = { path = "crates/deptangle-graph" }
+deptangle-io = { path = "crates/deptangle-io" }
+deptangle-minpath = { path = "crates/deptangle-minpath" }
+deptangle-ops = { path = "crates/deptangle-ops" }
+deptangle-test = { path = "crates/deptangle-test" }
+
+# External dependencies
+assert_cmd = { version = "2.2.2", features = ["color-auto"] }
+cargo_metadata = "0.23.1"
+clap = { version = "4.6.6", features = ["derive"] }
+color-eyre = "0.6.5"
+ctor = "1.0.13"
+eyre = "0.6.14"
+globset = "0.4.20"
+graphrs = "0.12.0"
+graphviz-rust = { version = "0.9.8", default-features = false }
+indexmap = "2.14.1"
+mermaid-rs-renderer = { version = "0.3.1", default-features = false }
+pathdiff = "0.2.3"
+petgraph = "0.8.3"
+pretty_assertions = "1.4.1"
+rand = "0.10.2"
+regex = "1.13.1"
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = "1.0.151"
+tempfile = "3.27.0"
+tracing = "0.1.44"
+tracing-subscriber = { version = "0.3.23", features = ["env-filter"] }

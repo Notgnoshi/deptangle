@@ -1,0 +1,21 @@
+[package]
+name = "deptangle-ops"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Dependency graph operations"
+
+[dependencies]
+clap.workspace = true
+deptangle-graph.workspace = true
+deptangle-minpath.workspace = true
+eyre.workspace = true
+globset.workspace = true
+graphrs.workspace = true
+indexmap.workspace = true
+petgraph.workspace = true
+rand.workspace = true
+regex.workspace = true
+
+[dev-dependencies]
+pretty_assertions.workspace = true

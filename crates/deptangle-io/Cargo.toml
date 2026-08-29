@@ -1,0 +1,21 @@
+[package]
+name = "deptangle-io"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Parse, detect, and emit dependency graph formats"
+
+[dependencies]
+cargo_metadata.workspace = true
+clap.workspace = true
+deptangle-graph.workspace = true
+eyre.workspace = true
+graphviz-rust.workspace = true
+indexmap.workspace = true
+mermaid-rs-renderer.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+tracing.workspace = true
+
+[dev-dependencies]
+pretty_assertions.workspace = true

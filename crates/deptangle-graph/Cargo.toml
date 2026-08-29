@@ -1,0 +1,10 @@
+[package]
+name = "deptangle-graph"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Dependency graph data model"
+
+[dependencies]
+indexmap.workspace = true
+petgraph.workspace = true
