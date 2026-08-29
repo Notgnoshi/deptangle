@@ -1,0 +1,16 @@
+[package]
+name = "deptangle-minpath"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Path shortening utilities"
+
+[dependencies]
+eyre.workspace = true
+globset.workspace = true
+indexmap.workspace = true
+pathdiff.workspace = true
+tracing.workspace = true
+
+[dev-dependencies]
+pretty_assertions.workspace = true
