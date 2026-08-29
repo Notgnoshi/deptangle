@@ -11,6 +11,7 @@ Tools to interrogate and detangle dependency graphs
 * [depfilter](#depfilter) -- filter or select subsets of dependency graphs
 * [deptransform](#deptransform) -- transform dependency graphs
 * [depquery](#depquery) -- query properties of dependency graphs
+* [depcluster](#depcluster) -- cluster dependency graphs using community detection
 
 # Philosophy
 
@@ -157,3 +158,34 @@ tracing-subscriber  10
 
 The `depquery` tool supports outputting `nodes`, `edges`, and `metrics`. The output is intended to
 be machine-readable, and is tab-separated.
+
+## depcluster
+
+Run community detection on a dependency graph to identify clusters of related nodes. Each cluster
+becomes a subgraph in the output, with cross-cluster edges at the top level. Supports Louvain
+(default), Leiden, and Label Propagation algorithms.
+
+```sh
+$ echo -e "a\nb\nc\nd\ne\nf\n#\na b\na c\nb c\nd e\nd f\ne f" |
+    depcluster -I tgf -O mermaid
+```
+
+```mermaid
+flowchart LR
+    subgraph cluster_0
+        a["a"]
+        b["b"]
+        c["c"]
+        a --> b
+        a --> c
+        b --> c
+    end
+    subgraph cluster_1
+        d["d"]
+        e["e"]
+        f["f"]
+        d --> e
+        d --> f
+        e --> f
+    end
+```
