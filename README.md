@@ -8,6 +8,7 @@ Tools to interrogate and detangle dependency graphs
 ## Table of contents
 
 * [depconv](#depconv) -- convert dependency graphs between formats
+* [depfilter](#depfilter) -- filter or select subsets of dependency graphs
 
 # Philosophy
 
@@ -90,3 +91,27 @@ preserves when parsing (P) and emitting (E):
 Converting from a rich format (DOT, cargo metadata) to a simpler one (TGF, depfile) silently drops
 unsupported attributes. Converting in the other direction preserves graph topology but cannot
 recover lost metadata.
+
+## depfilter
+
+Filter or select subsets of dependency graphs. Works on the same graph formats as `depconv`, and is
+designed to be chained with pipes.
+
+* `depfilter select` keeps nodes matching `--include` patterns and/or removes `--exclude` patterns
+* `depfilter between` select nodes connecting multiple sets of query nodes
+* `depfilter cycles` select any cycles in the graph
+* `depfilter slice` cut edges between subgraphs, isolating each subgraph
+
+Each subcommand has extra options to tune its behavior.
+
+```sh
+# From a cargo dependency tree, select the subtree rooted at "clap", excluding all the proc-macro crates:
+$ cargo tree --depth 10 \
+    | depfilter select -g "clap*" --deps -x "*derive*" -x "*proc*" -I cargo-tree -O dot
+digraph {
+    clap [label="v4.6.6 clap"];
+    clap_builder [label="v4.6.6 clap_builder"];
+    anstream [label="v0.6.21 anstream"];
+    ...
+}
+```

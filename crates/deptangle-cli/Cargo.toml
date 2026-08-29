@@ -9,6 +9,7 @@ description = "Tools to interrogate and detangle dependency graphs"
 clap.workspace = true
 color-eyre.workspace = true
 deptangle-io.workspace = true
+deptangle-ops.workspace = true
 eyre.workspace = true
 tracing.workspace = true
 tracing-subscriber.workspace = true

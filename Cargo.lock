@@ -343,6 +343,7 @@ dependencies = [
  "clap",
  "color-eyre",
  "deptangle-io",
+ "deptangle-ops",
  "deptangle-test",
  "eyre",
  "pretty_assertions",
