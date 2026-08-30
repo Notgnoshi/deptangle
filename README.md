@@ -26,20 +26,14 @@ pipes. Any ancillary output is emitted on stderr.
 
 # How to use
 
-You can install the tools with
+Use the [install](./install) script to install the tools from this project.
 
 ```sh
-./install --prefix ~/.local/
-./install --uninstall --prefix ~/.local/
+./install --prefix ~/.local
+./install --uninstall --prefix ~/.local
 ```
 
-You can also just experiment with the tools by
-
-```sh
-cargo run --release --bin depconv -- ...
-```
-
-You likely want a release build for large graphs.
+See [developer-guide.md](./docs/developer-guide.md) for more details.
 
 # Tools
 
